@@ -45,7 +45,6 @@ Snippet bodies may reference variables with `$NAME` or `${NAME:default}`. When a
 
 | Variable                   | Description                                                       |
 | -------------------------- | ----------------------------------------------------------------- |
-| `TM_SELECTED_TEXT`         | The currently selected text, or the empty string                  |
 | `TM_CURRENT_LINE`          | The contents of the current line                                  |
 | `TM_CURRENT_WORD`          | The word under the cursor, or the empty string                    |
 | `TM_LINE_INDEX`            | The zero-based line number                                        |
@@ -80,7 +79,7 @@ Snippet bodies may reference variables with `$NAME` or `${NAME:default}`. When a
 | `BLOCK_COMMENT_START`      | The block comment start token for the current language (e.g. `/*`)|
 | `BLOCK_COMMENT_END`        | The block comment end token for the current language (e.g. `*/`)  |
 
-Variables that depend on a selection or cursor (such as `TM_SELECTED_TEXT`) are resolved per cursor, so each cursor contributes its own value.
+Variables that depend on the cursor (such as `TM_CURRENT_WORD` or `CURSOR_NUMBER`) are resolved per cursor, so each cursor contributes its own value.
 
 ## Known Limitations
 

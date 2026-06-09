@@ -13998,54 +13998,6 @@ async fn test_snippet_with_multi_word_prefix(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-async fn test_snippet_completion_uses_overtyped_selection(cx: &mut TestAppContext) {
-    init_test(cx, |_| {});
-
-    let mut cx = EditorTestContext::new(cx).await;
-    cx.update_editor(|editor, _, cx| {
-        editor.project().unwrap().update(cx, |project, cx| {
-            project.snippets().update(cx, |snippets, _cx| {
-                let snippet = project::snippet_provider::Snippet {
-                    prefix: vec!["wrap".to_string()],
-                    body: "wrap($TM_SELECTED_TEXT)$0".to_string(),
-                    description: Some("wrap selection".to_string()),
-                    name: "wrap".to_string(),
-                };
-                snippets.add_snippet_for_test(
-                    None,
-                    PathBuf::from("test_snippets.json"),
-                    vec![Arc::new(snippet)],
-                );
-            });
-        })
-    });
-
-    cx.set_state("call «fooˇ»");
-    cx.simulate_input("wrap");
-    cx.run_until_parked();
-
-    cx.update_editor(|editor, window, cx| {
-        editor.confirm_completion(&ConfirmCompletion::default(), window, cx);
-    });
-    cx.assert_editor_state("call wrap(foo)ˇ");
-}
-
-#[gpui::test]
-async fn test_overtyping_shrinking_multiple_selections(cx: &mut TestAppContext) {
-    init_test(cx, |_| {});
-
-    let mut cx = EditorTestContext::new(cx).await;
-
-    // Typing a single character over several selections shrinks the buffer below
-    // the newest selection's original offset. Capturing the overtyped text for
-    // `TM_SELECTED_TEXT` must use a tracking anchor rather than resolving the
-    // stale pre-edit offset against the post-edit snapshot, which used to panic.
-    cx.set_state("«aaaaaˇ» «bbbbbˇ»");
-    cx.simulate_input("x");
-    cx.assert_editor_state("xˇ xˇ");
-}
-
-#[gpui::test]
 async fn test_document_format_during_save(cx: &mut TestAppContext) {
     init_test(cx, |_| {});
 
@@ -32535,70 +32487,25 @@ async fn test_insert_snippet(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-async fn test_insert_snippet_with_selected_text(cx: &mut TestAppContext) {
+async fn test_insert_snippet_with_variables(cx: &mut TestAppContext) {
     init_test(cx, |_| {});
     let mut cx = EditorTestContext::new(cx).await;
 
-    cx.set_state(indoc!(r#"call «fooˇ»"#));
-    cx.update_editor(|editor, window, cx| {
-        editor.insert_snippet_at_selections(
-            &InsertSnippet {
-                language: None,
-                name: None,
-                snippet: Some("wrap($TM_SELECTED_TEXT)$0".to_string()),
-            },
-            window,
-            cx,
-        );
-    });
-    cx.assert_editor_state(indoc!(r#"call wrap(foo)ˇ"#));
-
-    // Each selection contributes its own selected text.
-    cx.set_state(indoc!(r#"«oneˇ» «twoˇ»"#));
-    cx.update_editor(|editor, window, cx| {
-        editor.insert_snippet_at_selections(
-            &InsertSnippet {
-                language: None,
-                name: None,
-                snippet: Some("[${TM_SELECTED_TEXT}]$0".to_string()),
-            },
-            window,
-            cx,
-        );
-    });
-    cx.assert_editor_state(indoc!(r#"[one]ˇ [two]ˇ"#));
-
-    // Selections of differing lengths exercise the per-range tabstop offset math:
-    // the second cursor's tabstop must account for the first replacement growing
-    // the buffer by a different amount.
-    cx.set_state(indoc!(r#"«xˇ» «yyyyˇ»"#));
-    cx.update_editor(|editor, window, cx| {
-        editor.insert_snippet_at_selections(
-            &InsertSnippet {
-                language: None,
-                name: None,
-                snippet: Some("[${TM_SELECTED_TEXT}]$0".to_string()),
-            },
-            window,
-            cx,
-        );
-    });
-    cx.assert_editor_state(indoc!(r#"[x]ˇ [yyyy]ˇ"#));
-
-    // With no selection, `${TM_SELECTED_TEXT:default}` falls back to its default.
+    // A variable with a default falls back to it, and the trailing tabstop is
+    // shifted past the inserted text.
     cx.set_state(indoc!(r#"hereˇ"#));
     cx.update_editor(|editor, window, cx| {
         editor.insert_snippet_at_selections(
             &InsertSnippet {
                 language: None,
                 name: None,
-                snippet: Some("<${TM_SELECTED_TEXT:nothing}>$0".to_string()),
+                snippet: Some("<${TM_CURRENT_WORD:nothing}>$0".to_string()),
             },
             window,
             cx,
         );
     });
-    cx.assert_editor_state(indoc!(r#"here<nothing>ˇ"#));
+    cx.assert_editor_state(indoc!(r#"here<here>ˇ"#));
 
     // `TM_CURRENT_WORD` and the per-cursor `CURSOR_NUMBER` resolve independently
     // for each cursor.

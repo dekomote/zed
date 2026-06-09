@@ -488,19 +488,19 @@ mod tests {
     }
 
     #[test]
-    fn test_snippet_with_selected_text_variable() {
-        let snippet = Snippet::parse("wrap($TM_SELECTED_TEXT)").unwrap();
+    fn test_snippet_with_variable() {
+        let snippet = Snippet::parse("wrap($TM_FILENAME_BASE)").unwrap();
         assert_eq!(snippet.text, "wrap()");
         assert_eq!(
             snippet.variables,
             &[SnippetVariable {
-                name: "TM_SELECTED_TEXT".to_string(),
+                name: "TM_FILENAME_BASE".to_string(),
                 range: 5..5,
             }]
         );
 
         let resolved = snippet
-            .resolve_variables(|name| (name == "TM_SELECTED_TEXT").then(|| "hello".to_string()));
+            .resolve_variables(|name| (name == "TM_FILENAME_BASE").then(|| "hello".to_string()));
         assert_eq!(resolved.text, "wrap(hello)");
         assert!(resolved.variables.is_empty());
         // The trailing end tabstop is shifted past the inserted text.
@@ -509,24 +509,24 @@ mod tests {
 
     #[test]
     fn test_snippet_with_braced_variable_and_tabstops() {
-        let snippet = Snippet::parse("${TM_SELECTED_TEXT}$1 = $2").unwrap();
+        let snippet = Snippet::parse("${TM_FILENAME_BASE}$1 = $2").unwrap();
         assert_eq!(snippet.text, " = ");
         assert_eq!(tabstops(&snippet), &[vec![0..0], vec![3..3]]);
 
         let resolved = snippet
-            .resolve_variables(|name| (name == "TM_SELECTED_TEXT").then(|| "value".to_string()));
+            .resolve_variables(|name| (name == "TM_FILENAME_BASE").then(|| "value".to_string()));
         assert_eq!(resolved.text, "value = ");
         assert_eq!(tabstops(&resolved), &[vec![5..5], vec![8..8]]);
     }
 
     #[test]
     fn test_snippet_variable_default() {
-        let snippet = Snippet::parse("log(${TM_SELECTED_TEXT:msg})").unwrap();
+        let snippet = Snippet::parse("log(${TM_FILENAME_BASE:msg})").unwrap();
         assert_eq!(snippet.text, "log(msg)");
         assert_eq!(
             snippet.variables,
             &[SnippetVariable {
-                name: "TM_SELECTED_TEXT".to_string(),
+                name: "TM_FILENAME_BASE".to_string(),
                 range: 4..7,
             }]
         );
@@ -538,19 +538,19 @@ mod tests {
         assert_eq!(empty.text, "log(msg)");
 
         let resolved = snippet
-            .resolve_variables(|name| (name == "TM_SELECTED_TEXT").then(|| "abc".to_string()));
+            .resolve_variables(|name| (name == "TM_FILENAME_BASE").then(|| "abc".to_string()));
         assert_eq!(resolved.text, "log(abc)");
         assert_eq!(tabstops(&resolved), &[vec![8..8]]);
     }
 
     #[test]
     fn test_snippet_with_multiple_variables() {
-        let snippet = Snippet::parse("$TM_SELECTED_TEXT-$1-$TM_SELECTED_TEXT").unwrap();
+        let snippet = Snippet::parse("$TM_FILENAME_BASE-$1-$TM_FILENAME_BASE").unwrap();
         assert_eq!(snippet.text, "--");
         assert_eq!(tabstops(&snippet), &[vec![1..1], vec![2..2]]);
 
         let resolved = snippet
-            .resolve_variables(|name| (name == "TM_SELECTED_TEXT").then(|| "xy".to_string()));
+            .resolve_variables(|name| (name == "TM_FILENAME_BASE").then(|| "xy".to_string()));
         assert_eq!(resolved.text, "xy--xy");
         assert_eq!(tabstops(&resolved), &[vec![3..3], vec![6..6]]);
     }

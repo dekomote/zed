@@ -78,25 +78,6 @@ impl Editor {
 
         self.unfold_buffers_with_selections(cx);
 
-        // Capture the text the user is about to type over. The anchor is created
-        // against the pre-edit snapshot so it tracks correctly across the edit
-        // (the edited range may differ from the selection and shrink the buffer).
-        let overtyped_selection = (!text.is_empty())
-            .then(|| {
-                let newest = self
-                    .selections
-                    .newest::<MultiBufferOffset>(&self.display_snapshot(cx));
-                (newest.start != newest.end).then(|| {
-                    let snapshot = self.buffer.read(cx).read(cx);
-                    let overtyped_text: Arc<str> = snapshot
-                        .text_for_range(newest.start..newest.end)
-                        .collect::<String>()
-                        .into();
-                    (snapshot.anchor_before(newest.start), overtyped_text)
-                })
-            })
-            .flatten();
-
         let selections = self.selections.all_adjusted(&self.display_snapshot(cx));
         let mut bracket_inserted = false;
         let mut edits = Vec::new();
@@ -545,10 +526,6 @@ impl Editor {
             this.refresh_edit_prediction(true, false, window, cx);
             jsx_tag_auto_close::handle_from(this, initial_buffer_versions, window, cx);
         });
-
-        if let Some((anchor, overtyped_text)) = overtyped_selection {
-            self.selection_overtyped = Some((anchor, overtyped_text));
-        }
     }
 
     pub fn newline(&mut self, _: &Newline, window: &mut Window, cx: &mut Context<Self>) {
@@ -2215,7 +2192,7 @@ impl Editor {
             bail!("`name` or `snippet` is required")
         };
 
-        self.insert_snippet_over_selection(&insertion_ranges, snippet, window, cx)
+        self.insert_snippet(&insertion_ranges, snippet, window, cx)
     }
 }
 

@@ -402,12 +402,6 @@ trait InvalidationRegion {
     fn ranges(&self) -> &[Range<Anchor>];
 }
 
-enum SelectedTextSource {
-    None,
-    InsertionRanges,
-    Explicit(Arc<str>),
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum SelectPhase {
     Begin {
@@ -951,8 +945,6 @@ pub struct Editor {
     deferred_selection_effects_state: Option<DeferredSelectionEffectsState>,
     autoclose_regions: Vec<AutocloseRegion>,
     snippet_stack: InvalidationStack<SnippetState>,
-    /// Text that was replaced by the user typing over a selection
-    selection_overtyped: Option<(Anchor, Arc<str>)>,
     select_syntax_node_history: SelectSyntaxNodeHistory,
     ime_transaction: Option<TransactionId>,
     pub diagnostics_max_severity: DiagnosticSeverity,
@@ -2152,7 +2144,6 @@ impl Editor {
             deferred_selection_effects_state: None,
             autoclose_regions: Vec::new(),
             snippet_stack: InvalidationStack::default(),
-            selection_overtyped: None,
             select_syntax_node_history: SelectSyntaxNodeHistory::default(),
             ime_transaction: None,
             active_diagnostics: ActiveDiagnostic::None,
@@ -4499,7 +4490,6 @@ impl Editor {
         cx.notify();
         self.completion_tasks.clear();
         let context_menu = self.context_menu.borrow_mut().take();
-        self.selection_overtyped = None;
         self.stale_edit_prediction_in_menu.take();
         self.update_visible_edit_prediction(window, cx);
         if let Some(CodeContextMenu::Completions(_)) = &context_menu
@@ -4551,56 +4541,6 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Result<()> {
-        self.insert_snippet_inner(
-            insertion_ranges,
-            snippet,
-            SelectedTextSource::None,
-            window,
-            cx,
-        )
-    }
-
-    pub fn insert_snippet_with_selected_text(
-        &mut self,
-        insertion_ranges: &[Range<MultiBufferOffset>],
-        snippet: Snippet,
-        selected_text: Arc<str>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Result<()> {
-        self.insert_snippet_inner(
-            insertion_ranges,
-            snippet,
-            SelectedTextSource::Explicit(selected_text),
-            window,
-            cx,
-        )
-    }
-
-    pub fn insert_snippet_over_selection(
-        &mut self,
-        insertion_ranges: &[Range<MultiBufferOffset>],
-        snippet: Snippet,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Result<()> {
-        self.insert_snippet_inner(
-            insertion_ranges,
-            snippet,
-            SelectedTextSource::InsertionRanges,
-            window,
-            cx,
-        )
-    }
-
-    fn insert_snippet_inner(
-        &mut self,
-        insertion_ranges: &[Range<MultiBufferOffset>],
-        snippet: Snippet,
-        selected_text: SelectedTextSource,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Result<()> {
         struct Tabstop<T> {
             is_end_tabstop: bool,
             ranges: Vec<Range<T>>,
@@ -4620,21 +4560,8 @@ impl Editor {
                         let Some(variable_context) = &variable_context else {
                             return snippet.clone();
                         };
-                        let selected_text: String = match &selected_text {
-                            SelectedTextSource::None => String::new(),
-                            SelectedTextSource::InsertionRanges => {
-                                snapshot.text_for_range(range.clone()).collect()
-                            }
-                            SelectedTextSource::Explicit(text) => text.to_string(),
-                        };
                         snippet.resolve_variables(|name| {
-                            variable_context.resolve(
-                                name,
-                                &selected_text,
-                                &snapshot,
-                                range,
-                                cursor_index,
-                            )
+                            variable_context.resolve(name, &snapshot, range, cursor_index)
                         })
                     })
                     .collect::<Vec<_>>()

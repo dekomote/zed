@@ -80,13 +80,11 @@ impl SnippetVariableContext {
     pub(crate) fn resolve(
         &self,
         name: &str,
-        selected_text: &str,
         snapshot: &MultiBufferSnapshot,
         range: &Range<MultiBufferOffset>,
         cursor_index: usize,
     ) -> Option<String> {
         match name {
-            "TM_SELECTED_TEXT" => Some(selected_text.to_string()),
             "TM_CURRENT_LINE" => Some(self.current_line(snapshot, range)),
             "TM_CURRENT_WORD" => Some(self.current_word(snapshot, range)),
             "TM_LINE_INDEX" => Some(self.line_index(snapshot, range).to_string()),
